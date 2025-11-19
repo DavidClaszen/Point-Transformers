@@ -76,11 +76,13 @@ def main(args):
 
     trainDataLoader = torch.utils.data.DataLoader(
         TRAIN_DATASET, batch_size=args.batch_size,
-        shuffle=True, num_workers=4, pin_memory=True
+        shuffle=True, num_workers=args.workers,
+        pin_memory=True
     )
     testDataLoader = torch.utils.data.DataLoader(
         TEST_DATASET, batch_size=args.batch_size,
-        shuffle=False, num_workers=4, pin_memory=True
+        shuffle=False, num_workers=args.workers,
+        pin_memory=True
     )
 
     '''MODEL LOADING'''
