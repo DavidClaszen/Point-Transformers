@@ -117,13 +117,13 @@ def main(args):
     best_instance_acc = 0.0
     best_class_acc = 0.0
     best_epoch = 0
-    mean_correct = []
 
     '''TRANING'''
     logger.info('Start training...')
     for epoch in range(start_epoch, args.epoch):
         logger.info('Epoch %d (%d/%s):' % (global_epoch + 1, epoch + 1, args.epoch))
 
+        mean_correct = []
         classifier.train()
         for batch_id, data in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
             points, target = data
