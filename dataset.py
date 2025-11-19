@@ -185,7 +185,7 @@ class PAPNetDataLoader(Dataset):
 
     def _get_item(self, index):
 
-        point_set = self.points[index][:, 0:3].astype(np.float32)
+        point_set = self.points[index].astype(np.float32)
         cls = np.array([self.labels[index]]).astype(np.int32) 
 
         if self.uniform:
