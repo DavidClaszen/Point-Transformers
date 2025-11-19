@@ -2,7 +2,7 @@
 Author: Benny
 Date: Nov 2019
 """
-from dataset import ModelNetDataLoader
+from dataset import ModelNetDataLoader, PAPNetDataLoader
 import argparse
 import numpy as np
 import os
@@ -55,10 +55,29 @@ def main(args):
     logger.info('Load dataset ...')
     DATA_PATH = hydra.utils.to_absolute_path('../../datasets/modelnet40_normal_resampled/')
 
-    TRAIN_DATASET = ModelNetDataLoader(root=DATA_PATH, npoint=args.num_point, split='train', normal_channel=args.normal)
-    TEST_DATASET = ModelNetDataLoader(root=DATA_PATH, npoint=args.num_point, split='test', normal_channel=args.normal)
-    trainDataLoader = torch.utils.data.DataLoader(TRAIN_DATASET, batch_size=args.batch_size, shuffle=True, num_workers=2)
-    testDataLoader = torch.utils.data.DataLoader(TEST_DATASET, batch_size=args.batch_size, shuffle=False, num_workers=2)
+    DatasetClass = PAPNetDataLoader if args.use_papnet_loader else ModelNetDataLoader
+
+    TRAIN_DATASET = DatasetClass(
+        root=DATA_PATH,
+        npoint=args.num_point,
+        split='train',
+        normal_channel=args.normal,
+    )
+    TEST_DATASET = DatasetClass(
+        root=DATA_PATH,
+        npoint=args.num_point,
+        split='test',
+        normal_channel=args.normal,
+    )
+
+    trainDataLoader = torch.utils.data.DataLoader(
+        TRAIN_DATASET, batch_size=args.batch_size,
+        shuffle=True, num_workers=2
+    )
+    testDataLoader = torch.utils.data.DataLoader(
+        TEST_DATASET, batch_size=args.batch_size,
+        shuffle=False, num_workers=2
+    )
 
     '''MODEL LOADING'''
     args.num_class = 40

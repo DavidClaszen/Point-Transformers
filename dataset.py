@@ -163,9 +163,50 @@ class PartNormalDataset(Dataset):
         return len(self.datapath)
 
 
+class PAPNetDataLoader(Dataset):
+    def __init__(self, root, npoint=1024, split='train', uniform=False, normal_channel=True):
+        self.root = root
+        self.npoints = npoint
+        self.uniform = uniform
+        self.normal_channel = normal_channel
+
+        if split == 'train':
+            self.points = np.load(os.path.join(root, 'train_points.npy'))
+            self.labels = np.load(os.path.join(root, 'train_labels.npy'))
+        else:
+            self.points = np.load(os.path.join(root, 'test_points.npy'))
+            self.labels = np.load(os.path.join(root, 'test_labels.npy'))
+
+        assert (split == 'train' or split == 'test')
+        print('The size of %s data is %d'%(split, len(self.points)))
+
+    def __len__(self):
+        return len(self.points)
+
+    def _get_item(self, index):
+
+        point_set = self.points[index][:, 0:3].astype(np.float32)
+        cls = self.labels[index].astype(np.int32)
+
+        if self.uniform:
+            point_set = farthest_point_sample(point_set, self.npoints)
+        else:
+            point_set = point_set[0:self.npoints, :]
+
+        point_set[:, 0:3] = pc_normalize(point_set[:, 0:3])
+
+        if not self.normal_channel:
+            point_set = point_set[:, 0:3]
+
+        return point_set, cls
+
+    def __getitem__(self, index):
+        return self._get_item(index)
+
+
 if __name__ == '__main__':
     data = ModelNetDataLoader('modelnet40_normal_resampled/', split='train', uniform=False, normal_channel=True)
     DataLoader = torch.utils.data.DataLoader(data, batch_size=12, shuffle=True)
-    for point,label in DataLoader:
+    for point, label in DataLoader:
         print(point.shape)
         print(label.shape)

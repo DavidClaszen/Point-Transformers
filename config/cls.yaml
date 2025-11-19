@@ -6,6 +6,7 @@ num_point: 1024
 optimizer: Adam
 weight_decay: 1e-4
 normal: True
+use_papnet_loader: False
 
 defaults:
   - model: Menghao
