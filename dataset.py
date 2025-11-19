@@ -186,7 +186,7 @@ class PAPNetDataLoader(Dataset):
     def _get_item(self, index):
 
         point_set = self.points[index][:, 0:3].astype(np.float32)
-        cls = self.labels[index].astype(np.int32)
+        cls = np.array([self.labels[index]]).astype(np.int32) 
 
         if self.uniform:
             point_set = farthest_point_sample(point_set, self.npoints)
