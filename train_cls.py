@@ -3,6 +3,7 @@ Author: Benny
 Date: Nov 2019
 """
 from dataset import ModelNetDataLoader, PAPNetDataLoader
+from torch.cuda.amp import autocast, GradScaler
 import argparse
 import numpy as np
 import os
@@ -18,6 +19,9 @@ import shutil
 import hydra
 import omegaconf
 
+scaler = GradScaler()
+torch.backends.cudnn.benchmark = True
+torch.set_float32_matmul_precision("high")
 
 def test(model, loader, num_class=40):
     mean_correct = []
@@ -72,11 +76,11 @@ def main(args):
 
     trainDataLoader = torch.utils.data.DataLoader(
         TRAIN_DATASET, batch_size=args.batch_size,
-        shuffle=True, num_workers=2
+        shuffle=True, num_workers=4, pin_memory=True
     )
     testDataLoader = torch.utils.data.DataLoader(
         TEST_DATASET, batch_size=args.batch_size,
-        shuffle=False, num_workers=2
+        shuffle=False, num_workers=4, pin_memory=True
     )
 
     '''MODEL LOADING'''
@@ -95,7 +99,6 @@ def main(args):
     except:
         logger.info('No existing model, starting training from scratch...')
         start_epoch = 0
-
 
     if args.optimizer == 'Adam':
         optimizer = torch.optim.Adam(
@@ -118,9 +121,9 @@ def main(args):
 
     '''TRANING'''
     logger.info('Start training...')
-    for epoch in range(start_epoch,args.epoch):
+    for epoch in range(start_epoch, args.epoch):
         logger.info('Epoch %d (%d/%s):' % (global_epoch + 1, epoch + 1, args.epoch))
-        
+
         classifier.train()
         for batch_id, data in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
             points, target = data
@@ -134,20 +137,23 @@ def main(args):
             points, target = points.cuda(), target.cuda()
             optimizer.zero_grad()
 
-            pred = classifier(points)
-            loss = criterion(pred, target.long())
+            with autocast():
+                pred = classifier(points)
+                loss = criterion(pred, target.long())
+
             pred_choice = pred.data.max(1)[1]
             correct = pred_choice.eq(target.long().data).cpu().sum()
             mean_correct.append(correct.item() / float(points.size()[0]))
-            loss.backward()
-            optimizer.step()
+
+            scaler.scale(loss).backward()
+            scaler.step(optimizer)
+            scaler.update()
             global_step += 1
-            
+
         scheduler.step()
 
         train_instance_acc = np.mean(mean_correct)
         logger.info('Train Instance Accuracy: %f' % train_instance_acc)
-
 
         with torch.no_grad():
             instance_acc, class_acc = test(classifier.eval(), testDataLoader)
