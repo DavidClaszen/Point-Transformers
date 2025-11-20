@@ -113,7 +113,11 @@ def main(args):
     else:
         optimizer = torch.optim.SGD(classifier.parameters(), lr=0.01, momentum=0.9)
 
-    scheduler = torch.optim.lr_scheduler.StepLR(optimizer, step_size=50, gamma=0.3)
+    scheduler = torch.optim.lr_scheduler.StepLR(
+        optimizer,
+        step_size=args.step_size,
+        gamma=0.3
+    )
     global_epoch = 0
     global_step = 0
     best_instance_acc = 0.0

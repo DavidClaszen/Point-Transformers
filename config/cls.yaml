@@ -8,6 +8,7 @@ weight_decay: 1e-4
 normal: True
 use_papnet_loader: False
 workers: 2
+step_size: 50
 
 defaults:
   - model: Menghao
