@@ -45,7 +45,7 @@ def test(model, loader, num_class=40):
     return instance_acc, class_acc
 
 
-@hydra.main(config_path='config', config_name='cls')
+@hydra.main(config_path='config', config_name='cls', version_base=1.2)
 def main(args):
     omegaconf.OmegaConf.set_struct(args, False)
 
@@ -57,7 +57,7 @@ def main(args):
 
     '''DATA LOADING'''
     logger.info('Load dataset ...')
-    DATA_PATH = hydra.utils.to_absolute_path('../../datasets/modelnet40_normal_resampled/')
+    DATA_PATH = hydra.utils.to_absolute_path(args.data_path)
 
     DatasetClass = PAPNetDataLoader if args.use_papnet_loader else ModelNetDataLoader
 

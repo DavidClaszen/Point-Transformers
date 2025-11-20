@@ -9,9 +9,11 @@ normal: True
 use_papnet_loader: False
 workers: 2
 step_size: 50
+data_path: '../../datasets/modelnet40_normal_resampled/'
 
 defaults:
   - model: Menghao
+  - _self_
 
 hydra:
   run:
