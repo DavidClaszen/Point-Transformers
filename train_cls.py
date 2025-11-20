@@ -45,7 +45,7 @@ def test(model, loader, num_class=40):
     return instance_acc, class_acc
 
 
-@hydra.main(config_path='config', config_name='cls', version_base=1.2)
+@hydra.main(config_path='config', config_name='cls', version_base='1.2')
 def main(args):
     omegaconf.OmegaConf.set_struct(args, False)
 
