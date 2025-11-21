@@ -19,7 +19,8 @@ defaults:
 hydra:
   run:
     dir: log/cls/${model.name}
-
   sweep:
     dir: log/cls
     subdir: ${model.name}
+  job:
+    chdir: True
