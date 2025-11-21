@@ -94,7 +94,7 @@ def main(args):
     criterion = torch.nn.CrossEntropyLoss()
 
     try:
-        checkpoint = torch.load('best_model.pth')
+        checkpoint = torch.load(args.checkpoint_path)
         start_epoch = checkpoint['epoch']
         classifier.load_state_dict(checkpoint['model_state_dict'])
         logger.info('Use pretrain model')
@@ -175,7 +175,7 @@ def main(args):
 
             if (instance_acc >= best_instance_acc):
                 logger.info('Save model...')
-                savepath = 'best_model.pth'
+                savepath = args.checkpoint_path
                 logger.info('Saving at %s'% savepath)
                 state = {
                     'epoch': best_epoch,
