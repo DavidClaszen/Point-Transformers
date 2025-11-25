@@ -44,6 +44,9 @@ def get_predictions(args):
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     classifier = ModelCls(args).to(device)
 
+    total_params = sum(p.numel() for p in classifier.parameters())
+    print(f"Total number of parameters: {total_params}")
+
     checkpoint = torch.load(args.checkpoint_path, map_location=device)
     classifier.load_state_dict(checkpoint["model_state_dict"])
     print(f"Model loaded with {checkpoint['epoch']} epochs")
