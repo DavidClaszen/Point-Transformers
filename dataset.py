@@ -164,17 +164,25 @@ class PartNormalDataset(Dataset):
 
 
 class PAPNetDataLoader(Dataset):
-    def __init__(self, root, npoint=1024, split='train', uniform=False, normal_channel=True):
+    def __init__(
+        self,
+        root,
+        npoint=1024,
+        split='train',
+        uniform=False,
+        normal_channel=True,
+        partiality=''
+    ):
         self.root = root
         self.npoints = npoint
         self.uniform = uniform
         self.normal_channel = normal_channel
 
         if split == 'train':
-            self.points = np.load(os.path.join(root, 'train_points.npy'))
+            self.points = np.load(os.path.join(root, f'train_points{partiality}.npy'))
             self.labels = np.load(os.path.join(root, 'train_labels.npy'))
         else:
-            self.points = np.load(os.path.join(root, 'test_points.npy'))
+            self.points = np.load(os.path.join(root, f'test_points{partiality}.npy'))
             self.labels = np.load(os.path.join(root, 'test_labels.npy'))
 
         assert (split == 'train' or split == 'test')
