@@ -11,6 +11,7 @@ workers: 2
 step_size: 50
 data_path: '../../datasets/modelnet40_normal_resampled/'
 checkpoint_path: 'best_model.pth'
+partiality: ''
 
 defaults:
   - model: Menghao

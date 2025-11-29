@@ -24,6 +24,7 @@ def get_predictions(args):
         npoint=args.num_point,
         split='test',
         normal_channel=args.normal,
+        partiality=args.partiality
     )
 
     test_loader = torch.utils.data.DataLoader(
@@ -51,24 +52,45 @@ def get_predictions(args):
     classifier.load_state_dict(checkpoint["model_state_dict"])
     print(f"Model loaded with {checkpoint['epoch']} epochs")
     classifier.eval()
+    start_event = torch.cuda.Event(enable_timing=True)
+    end_event = torch.cuda.Event(enable_timing=True)
 
     # ---- COLLECT PREDS & TARGETS ----
     all_preds = []
     all_targets = []
+    timings = []        # ms per batch
+    total_samples = 0   # for per-sample timing
 
     with torch.no_grad():
         for points, target in test_loader:
             target = target[:, 0]
             points = points.to(device)
             target = target.to(device)
+
+            start_event.record()
             with autocast():
                 logits = classifier(points)
             preds = logits.argmax(dim=1)
+            end_event.record()
+            torch.cuda.synchronize()
+            inference_time_ms = start_event.elapsed_time(end_event)
+
             all_preds.append(preds.cpu())
             all_targets.append(target.cpu())
+            timings.append(inference_time_ms)
+            total_samples += target.size(0)
 
     all_preds = torch.cat(all_preds).numpy()
     all_targets = torch.cat(all_targets).numpy()
+
+    num_iters = len(timings)
+    avg_batch_time_ms = sum(timings) / num_iters
+    avg_sample_time_ms = sum(timings) / total_samples
+
+    print(f'# iterations (batches): {num_iters}')
+    print(f'Average inference time per batch: {avg_batch_time_ms:.3f} ms')
+    print(f'Average inference time per sample: {avg_sample_time_ms:.6f} ms')
+
     return all_targets, all_preds
 
 

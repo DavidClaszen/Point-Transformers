@@ -66,12 +66,14 @@ def main(args):
         npoint=args.num_point,
         split='train',
         normal_channel=args.normal,
+        partiality=args.partiality
     )
     TEST_DATASET = DatasetClass(
         root=DATA_PATH,
         npoint=args.num_point,
         split='test',
         normal_channel=args.normal,
+        partiality=args.partiality
     )
 
     trainDataLoader = torch.utils.data.DataLoader(

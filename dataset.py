@@ -7,7 +7,16 @@ import json
 
 
 class ModelNetDataLoader(Dataset):
-    def __init__(self, root, npoint=1024, split='train', uniform=False, normal_channel=True, cache_size=15000):
+    def __init__(
+        self,
+        root,
+        npoint=1024,
+        split='train',
+        uniform=False,
+        normal_channel=True,
+        cache_size=15000,
+        partiality=''
+    ):
         self.root = root
         self.npoints = npoint
         self.uniform = uniform
