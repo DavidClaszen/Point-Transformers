@@ -21,6 +21,8 @@ kd:
   teacher:
     model:
       name: Menghao
+    num_class: 40
+    input_dim: 6 
     checkpoint_path: 'best_model.pth'
   temperature: 4.0
   alpha: 0.7
