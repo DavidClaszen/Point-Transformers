@@ -3,7 +3,7 @@ Author: Benny
 Date: Nov 2019
 """
 from dataset import ModelNetDataLoader, PAPNetDataLoader
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 import argparse
 import numpy as np
 import os
@@ -21,7 +21,8 @@ import omegaconf
 
 scaler = GradScaler()
 torch.backends.cudnn.benchmark = True
-torch.set_float32_matmul_precision("high")
+torch.backends.cuda.matmul.fp32_precision = "tf32"
+torch.backends.cudnn.conv.fp32_precision = "tf32"
 
 def test(model, loader, num_class=40):
     mean_correct = []
