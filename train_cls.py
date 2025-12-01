@@ -179,6 +179,7 @@ def main(args):
 
             if (instance_acc >= best_instance_acc):
                 logger.info('Save model...')
+                savepath = hydra.utils.to_absolute_path(args.checkpoint_path)
                 savepath = args.checkpoint_path
                 logger.info('Saving at %s'% savepath)
                 state = {
