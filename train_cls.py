@@ -97,7 +97,8 @@ def main(args):
     criterion = torch.nn.CrossEntropyLoss()
 
     try:
-        checkpoint = torch.load(args.checkpoint_path)
+        ckpt_path = hydra.utils.to_absolute_path(args.checkpoint_path)
+        checkpoint = torch.load(ckpt_path, weights_only=False)
         start_epoch = checkpoint['epoch']
         classifier.load_state_dict(checkpoint['model_state_dict'])
         logger.info('Use pretrain model')
@@ -146,7 +147,7 @@ def main(args):
             points, target = points.cuda(), target.cuda()
             optimizer.zero_grad()
 
-            with autocast():
+            with autocast('cuda'):
                 pred = classifier(points)
                 loss = criterion(pred, target.long())
 
