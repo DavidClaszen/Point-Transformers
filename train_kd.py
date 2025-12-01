@@ -95,7 +95,7 @@ def main(args):
     if args.kd.enabled:
         # Load teacher model
         teacher = getattr(importlib.import_module('models.{}.model'.format(args.kd.teacher.model.name)), 'PointTransformerCls')(args.kd.teacher).cuda()
-        teacher_ckpt = torch.load(hydra.utils.to_absolute_path(args.kd.teacher.checkpoint_path))
+        teacher_ckpt = torch.load(hydra.utils.to_absolute_path(args.kd.teacher.checkpoint_path), weights_only=True)
         # Load teacher weights
         teacher.load_state_dict(teacher_ckpt['model_state_dict'])
         teacher.eval()
@@ -105,7 +105,7 @@ def main(args):
         logger.info('Fine-tuning from teacher model...')
 
     try:
-        checkpoint = torch.load(args.checkpoint_path)
+        checkpoint = torch.load(args.checkpoint_path, weights_only=True)
         start_epoch = checkpoint['epoch']
         classifier.load_state_dict(checkpoint['model_state_dict'])
         logger.info('Use pretrain model')
