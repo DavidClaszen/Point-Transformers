@@ -18,6 +18,12 @@ import omegaconf
 scaler = GradScaler()
 torch.backends.cudnn.benchmark = True
 torch.set_float32_matmul_precision("high")
+torch.serialization.add_safe_globals([
+    np.core.multiarray.scalar,  # For NumPy scalars
+    np._core.multiarray.ndarray,  # For NumPy ndarrays
+    np.dtype,                   # For NumPy data types
+    np.dtype('float64').__class__, # For the specific float64 dtype class
+])
 
 def test(model, loader, num_class=40):
     mean_correct = []
@@ -95,29 +101,27 @@ def main(args):
     if args.kd.enabled:
         # Load teacher model
         teacher = getattr(importlib.import_module('models.{}.model'.format(args.kd.teacher.model.name)), 'PointTransformerCls')(args.kd.teacher).cuda()
-        teacher_ckpt = torch.load(hydra.utils.to_absolute_path(args.kd.teacher.checkpoint_path), weights_only=True)
+        teacher_ckpt = torch.load(hydra.utils.to_absolute_path(args.kd.teacher.checkpoint_path))
         # Load teacher weights
         teacher.load_state_dict(teacher_ckpt['model_state_dict'])
         teacher.eval()
         # Freeze teacher parameters
         for param in teacher.parameters():
             param.requires_grad = False
+        # KD hyperparameters
+        t = args.kd.temperature
+        alpha = args.kd.alpha
         logger.info('Fine-tuning from teacher model...')
 
     try:
-        checkpoint = torch.load(args.checkpoint_path, weights_only=True)
+        checkpoint = torch.load(args.checkpoint_path)
         start_epoch = checkpoint['epoch']
         classifier.load_state_dict(checkpoint['model_state_dict'])
         logger.info('Use pretrain model')
     except:
         logger.info('No existing model, starting training from scratch...')
         start_epoch = 0
-        
-    # Define KD loss function between student and teacher
-    # The intent is to make the student mimic the teacher's output distribution
-    kd_loss_fn = torch.nn.KLDivLoss(reduction='batchmean')
-    t = args.kd.temperature
-    alpha = args.kd.alpha
+    
 
     if args.optimizer == 'Adam':
         optimizer = torch.optim.Adam(
@@ -207,6 +211,10 @@ def main(args):
             logger.info('Test Instance Accuracy: %f, Class Accuracy: %f'% (instance_acc, class_acc))
             logger.info('Best Instance Accuracy: %f, Class Accuracy: %f'% (best_instance_acc, best_class_acc))
 
+            if args.kd.enabled:
+                teacher_instance_acc, teacher_class_acc = test(teacher.eval(), testDataLoader)
+                logger.info('Teacher Instance Accuracy: %f, Class Accuracy: %f'% (teacher_instance_acc, teacher_class_acc))
+
             if (instance_acc >= best_instance_acc):
                 logger.info('Save model...')
                 savepath = args.checkpoint_path
@@ -217,6 +225,8 @@ def main(args):
                     'class_acc': class_acc,
                     'model_state_dict': classifier.state_dict(),
                     'optimizer_state_dict': optimizer.state_dict(),
+                    'teacher_instance_acc': teacher_instance_acc if args.kd.enabled else None,
+                    'teacher_class_acc': teacher_class_acc if args.kd.enabled else None
                 }
                 torch.save(state, savepath)
             global_epoch += 1
