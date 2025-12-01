@@ -4,8 +4,12 @@ import hydra
 import omegaconf
 
 from dataset import ModelNetDataLoader, PAPNetDataLoader
-from torch.cuda.amp import autocast
+from torch.amp import autocast
 from omegaconf import OmegaConf
+
+torch.backends.cudnn.benchmark = True
+torch.backends.cuda.matmul.fp32_precision = "tf32"
+torch.backends.cudnn.conv.fp32_precision = "tf32"
 
 
 def get_predictions(args):
@@ -48,7 +52,8 @@ def get_predictions(args):
     total_params = sum(p.numel() for p in classifier.parameters())
     print(f"Total number of parameters: {total_params}")
 
-    checkpoint = torch.load(args.checkpoint_path, map_location=device)
+    ckpt_path = hydra.utils.to_absolute_path(args.checkpoint_path)
+    checkpoint = torch.load(ckpt_path, map_location=device, weights_only=False)
     classifier.load_state_dict(checkpoint["model_state_dict"])
     print(f"Model loaded with {checkpoint['epoch']} epochs")
     classifier.eval()
@@ -68,7 +73,7 @@ def get_predictions(args):
             target = target.to(device)
 
             start_event.record()
-            with autocast():
+            with autocast('cuda'):
                 logits = classifier(points)
             preds = logits.argmax(dim=1)
             end_event.record()
