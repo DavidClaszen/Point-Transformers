@@ -36,7 +36,7 @@ class Local_op(nn.Module):
         x = x.reshape(-1, d, s)
         batch_size, _, N = x.size()
         x = self.relu(self.bn1(self.conv1(x))) # B, D, N
-        x = self.relu(self.bn2(self.conv2(x))) # B, D, N
+        # x = self.relu(self.bn2(self.conv2(x))) # B, D, N
         x = torch.max(x, 2)[0]
         x = x.view(batch_size, -1)
         x = x.reshape(b, n, -1).permute(0, 2, 1)
@@ -96,12 +96,13 @@ class StackedAttention(nn.Module):
         x = self.relu(self.bn2(self.conv2(x)))
 
         x1 = self.sa1(x)
-        x2 = self.sa2(x1)
+        # x2 = self.sa2(x1)
         # x3 = self.sa3(x2)
         # x4 = self.sa4(x3)
 
         # x = torch.cat((x1, x2, x3, x4), dim=1)
-        x = torch.cat((x1, x2), dim=1)
+        # x = torch.cat((x1, x2), dim=1)
+        x = x1
 
         return x
 
@@ -120,19 +121,13 @@ class PointTransformerCls(nn.Module):
         self.pt_last = StackedAttention(256)
 
         self.relu = nn.ReLU()
-        # self.conv_fuse = nn.Sequential(nn.Conv1d(1280, 1024, kernel_size=1, bias=False),
-        #                            nn.BatchNorm1d(1024),
-        #                            nn.LeakyReLU(negative_slope=0.2))
-        self.conv_fuse = nn.Sequential(nn.Conv1d(256*3, 1024, kernel_size=1, bias=False),
-                                   nn.BatchNorm1d(1024),
+        self.conv_fuse = nn.Sequential(nn.Conv1d(256*2, 512, kernel_size=1, bias=False),
+                                   nn.BatchNorm1d(512),
                                    nn.LeakyReLU(negative_slope=0.2))
 
-        self.linear1 = nn.Linear(1024, 512, bias=False)
-        self.bn6 = nn.BatchNorm1d(512)
-        self.dp1 = nn.Dropout(p=0.5)
-        self.linear2 = nn.Linear(512, 256)
-        self.bn7 = nn.BatchNorm1d(256)
-        self.dp2 = nn.Dropout(p=0.5)
+        self.linear1 = nn.Linear(512, 256, bias=False)
+        self.bn6 = nn.BatchNorm1d(256)
+        self.dp1 = nn.Dropout(p=0.2)
         self.linear3 = nn.Linear(256, output_channels)
 
     def forward(self, x):
@@ -154,10 +149,11 @@ class PointTransformerCls(nn.Module):
         x = torch.max(x, 2)[0]
         x = x.view(batch_size, -1)
 
+        # Reduce layers
         x = self.relu(self.bn6(self.linear1(x)))
         x = self.dp1(x)
-        x = self.relu(self.bn7(self.linear2(x)))
-        x = self.dp2(x)
+        # x = self.relu(self.bn7(self.linear2(x)))
+        # x = self.dp2(x)
         x = self.linear3(x)
 
         return x
