@@ -309,3 +309,72 @@ class PointNetFeaturePropagation(nn.Module):
             bn = self.mlp_bns[i]
             new_points = F.relu(bn(conv(new_points)))
         return new_points
+
+
+def batch_plane_occlusion(
+    pc: torch.Tensor,
+    min_occlude: float = 0.10,
+    max_occlude: float = 0.50,
+) -> torch.Tensor:
+    """
+    Apply the same random plane occlusion to a batch of point clouds.
+
+    Args:
+        pc: (B, N, D) tensor; first 3 dims are xyz, rest can be normals.
+        min_occlude: min fraction of points to occlude (drop).
+        max_occlude: max fraction of points to occlude (drop).
+
+    Returns:
+        (B, N, D) tensor with each cloud occluded by the same random plane
+        and resampled back to N points.
+    """
+    assert pc.dim() == 3, "pc must be (B, N, D)"
+    B, N, D = pc.shape
+    device = pc.device
+
+    coords = pc[..., :3]  # (B, N, 3)
+
+    # Sample occlusion fraction
+    frac_occ = torch.empty(1, device=device).uniform_(min_occlude, max_occlude).item() # noqa
+    k_drop = int(round(frac_occ * N))
+    k_drop = max(1, min(N - 1, k_drop))  # keep at least 1, drop at least 1
+
+    # Sample a random plane normal shared by the batch
+    n = torch.randn(3, device=device)
+    n = n / (n.norm() + 1e-8)  # (3,)
+
+    # Project all points onto this direction
+    # proj[b, i] = dot(xyz[b, i, :], n)
+    proj = (coords * n.view(1, 1, 3)).sum(dim=-1)
+    _, idx_sorted = torch.sort(proj, dim=1)
+
+    # Randomly choose which side to occlude: near or far
+    occlude_far = bool(torch.randint(0, 2, (1,), device=device).item())
+    if not occlude_far:
+        # Occlude points with smallest projection (closest in that direction)
+        keep_idx = idx_sorted[:, k_drop:]
+    else:
+        # Occlude points with largest projection (farthest in that direction)
+        keep_idx = idx_sorted[:, :N - k_drop]
+    N_keep = keep_idx.shape[1]
+
+    # Gather kept points
+    keep_idx_expanded = keep_idx.unsqueeze(-1).expand(-1, -1, D)
+    kept = torch.gather(pc, 1, keep_idx_expanded)
+
+    # If needed, resample back to N
+    if N_keep == N:
+        return kept
+
+    # extra_idx: indices into kept, per batch
+    extra_idx = torch.randint(0, N_keep, (B, N - N_keep), device=device)
+    base_idx = torch.arange(
+        N_keep,
+        device=device
+    ).view(1, -1).expand(B, N_keep)
+    full_idx = torch.cat([base_idx, extra_idx], dim=1)
+
+    full_idx_expanded = full_idx.unsqueeze(-1).expand(-1, -1, D)  # (B, N, D)
+    out = torch.gather(kept, 1, full_idx_expanded)
+
+    return out
