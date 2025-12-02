@@ -164,7 +164,7 @@ def main(args):
             points, target = points.cuda(), target.cuda()
             optimizer.zero_grad()
 
-            with autocast():
+            with autocast('cuda'):
                 pred = classifier(points)
                 label_loss = criterion(pred, target.long())
             
