@@ -311,70 +311,64 @@ class PointNetFeaturePropagation(nn.Module):
         return new_points
 
 
-def batch_plane_occlusion(
-    pc: torch.Tensor,
-    min_occlude: float = 0.10,
-    max_occlude: float = 0.50,
-) -> torch.Tensor:
+def random_plane_occlusion(
+    batch_pc: np.ndarray,
+    min_occlude: float = 0.50,
+    max_occlude: float = 0.90,
+) -> np.ndarray:
     """
-    Apply the same random plane occlusion to a batch of point clouds.
+    Apply random plane-based occlusion to a batch of point clouds.
 
     Args:
-        pc: (B, N, D) tensor; first 3 dims are xyz, rest can be normals.
-        min_occlude: min fraction of points to occlude (drop).
-        max_occlude: max fraction of points to occlude (drop).
+        batch_pc: (B, N, D) array. First 3 dims are xyz, remaining dims
+                  (e.g. normals) are kept aligned.
+        min_occlude: minimum fraction of points to occlude.
+        max_occlude: maximum fraction of points to occlude.
 
     Returns:
-        (B, N, D) tensor with each cloud occluded by the same random plane
-        and resampled back to N points.
+        (B, N, D) array with each cloud occluded
+            and resampled back to N points.
     """
-    assert pc.dim() == 3, "pc must be (B, N, D)"
-    B, N, D = pc.shape
-    device = pc.device
+    assert batch_pc.ndim == 3, "batch_pc must be (B, N, D)"
+    B, N, D = batch_pc.shape
+    out = np.empty_like(batch_pc)
 
-    coords = pc[..., :3]  # (B, N, 3)
+    rng = np.random.default_rng()
 
-    # Sample occlusion fraction
-    frac_occ = torch.empty(1, device=device).uniform_(min_occlude, max_occlude).item() # noqa
-    k_drop = int(round(frac_occ * N))
-    k_drop = max(1, min(N - 1, k_drop))  # keep at least 1, drop at least 1
+    for b in range(B):
+        pc = batch_pc[b]           # (N, D)
+        coords = pc[:, :3]         # xyz
 
-    # Sample a random plane normal shared by the batch
-    n = torch.randn(3, device=device)
-    n = n / (n.norm() + 1e-8)  # (3,)
+        # Sample occlusion fraction
+        frac_occ = rng.uniform(min_occlude, max_occlude)
+        k_drop = int(round(frac_occ * N))
+        k_drop = max(1, min(N - 1, k_drop))  # drop at least 1, keep at least 1
 
-    # Project all points onto this direction
-    # proj[b, i] = dot(xyz[b, i, :], n)
-    proj = (coords * n.view(1, 1, 3)).sum(dim=-1)
-    _, idx_sorted = torch.sort(proj, dim=1)
+        # Random plane normal
+        n = rng.normal(size=3)
+        n /= (np.linalg.norm(n) + 1e-8)
+        # Project points onto this direction
+        proj = coords @ n  # (N,)
+        # Sort along projection axis
+        sorted_idx = np.argsort(proj)
 
-    # Randomly choose which side to occlude: near or far
-    occlude_far = bool(torch.randint(0, 2, (1,), device=device).item())
-    if not occlude_far:
-        # Occlude points with smallest projection (closest in that direction)
-        keep_idx = idx_sorted[:, k_drop:]
-    else:
-        # Occlude points with largest projection (farthest in that direction)
-        keep_idx = idx_sorted[:, :N - k_drop]
-    N_keep = keep_idx.shape[1]
+        # Randomly choose which side to occlude: near or far
+        if rng.integers(0, 2) == 0:
+            # Occlude smallest projections
+            keep_idx = sorted_idx[k_drop:]
+        else:
+            # Occlude largest projections
+            keep_idx = sorted_idx[:N - k_drop]
 
-    # Gather kept points
-    keep_idx_expanded = keep_idx.unsqueeze(-1).expand(-1, -1, D)
-    kept = torch.gather(pc, 1, keep_idx_expanded)
+        kept = pc[keep_idx]        # (N_keep, D)
+        N_keep = kept.shape[0]
 
-    # If needed, resample back to N
-    if N_keep == N:
-        return kept
-
-    # extra_idx: indices into kept, per batch
-    extra_idx = torch.randint(0, N_keep, (B, N - N_keep), device=device)
-    base_idx = torch.arange(
-        N_keep,
-        device=device
-    ).view(1, -1).expand(B, N_keep)
-    full_idx = torch.cat([base_idx, extra_idx], dim=1)
-
-    full_idx_expanded = full_idx.unsqueeze(-1).expand(-1, -1, D)  # (B, N, D)
-    out = torch.gather(kept, 1, full_idx_expanded)
+        # Resample remaining points back to N with replacement
+        if N_keep == N:
+            out[b] = kept
+        else:
+            extra_idx = rng.integers(0, N_keep, size=N - N_keep)
+            all_idx = np.concatenate([np.arange(N_keep), extra_idx], axis=0)
+            out[b] = kept[all_idx]
 
     return out

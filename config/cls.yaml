@@ -12,6 +12,9 @@ step_size: 50
 data_path: '../../datasets/modelnet40_normal_resampled/'
 checkpoint_path: 'best_model.pth'
 partiality: ''
+occlusion: ''
+occlusion_min: 0.10
+occlusion_max: 0.90
 
 defaults:
   - model: Menghao
