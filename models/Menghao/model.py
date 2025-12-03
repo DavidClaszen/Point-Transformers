@@ -64,7 +64,7 @@ class SA_Layer(nn.Module):
         energy = (x_q @ x_k) / math.sqrt(d_k)  # b, n, n
         attention = self.softmax(energy)
         # attention = attention / (1e-9 + attention.sum(dim=1, keepdims=True))
-        x_r = x_v @ attention # b, c, n 
+        x_r = x_v @ attention  # b, c, n 
         x_r = self.act(self.after_norm(self.trans_conv(x - x_r)))
         x = x + x_r
         return x

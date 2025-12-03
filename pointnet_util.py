@@ -33,7 +33,11 @@ def square_distance(src, dst):
     Output:
         dist: per-point square distance, [B, N, M]
     """
-    return torch.sum((src[:, :, None] - dst[:, None]) ** 2, dim=-1)
+    src_sq = (src ** 2).sum(dim=-1, keepdim=True)    # (B, N, 1)
+    dst_sq = (dst ** 2).sum(dim=-1, keepdim=True)    # (B, M, 1)
+    # (B, N, M) = (B, N, 1) + (B, 1, M) - 2 * src @ dst^T
+    dist = src_sq + dst_sq.transpose(1, 2) - 2 * src @ dst.transpose(1, 2)
+    return dist
 
 
 def index_points(points, idx):
