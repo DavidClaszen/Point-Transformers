@@ -68,7 +68,52 @@ class SA_Layer(nn.Module):
         x_r = self.act(self.after_norm(self.trans_conv(x - x_r)))
         x = x + x_r
         return x
-    
+
+
+class SA_Layer_MH(nn.Module):
+    def __init__(self, channels, num_heads=4):
+        super().__init__()
+        assert channels % num_heads == 0
+        self.channels = channels
+        self.num_heads = num_heads
+        self.head_dim = channels // num_heads
+
+        # shared qk + v as before
+        self.qk_conv = nn.Conv1d(channels, channels, 1, bias=False)
+        self.v_conv = nn.Conv1d(channels, channels, 1, bias=False)
+        self.trans_conv = nn.Conv1d(channels, channels, 1)
+        self.after_norm = nn.BatchNorm1d(channels)
+        self.act = nn.ReLU()
+        self.softmax = nn.Softmax(dim=-1)
+
+    def forward(self, x):
+        # x: (B, C, N)
+        B, C, N = x.shape
+
+        qk = self.qk_conv(x)                         # (B, C, N)
+        v = self.v_conv(x)                          # (B, C, N)
+
+        # reshape to heads
+        qk = qk.view(B, self.num_heads, self.head_dim, N)
+        v = v.view(B, self.num_heads, self.head_dim, N)
+
+        q = qk                                      # (B, H, Dh, N)
+        k = qk                                      # weight tying
+
+        q = q.permute(0, 1, 3, 2)                   # (B, H, N, Dh)
+        k = k                                       # (B, H, Dh, N)
+
+        energy = torch.matmul(q, k) / math.sqrt(self.head_dim)  # (B, H, N, N)
+        attn = self.softmax(energy)
+
+        # v: (B, H, Dh, N); attn: (B, H, N, N)
+        x_r = torch.matmul(v, attn)                 # (B, H, Dh, N)
+
+        # merge heads back
+        x_r = x_r.view(B, C, N)
+        x_r = self.act(self.after_norm(self.trans_conv(x - x_r)))
+        return x + x_r
+
 
 class StackedAttention(nn.Module):
     def __init__(self, channels=256):
@@ -79,10 +124,10 @@ class StackedAttention(nn.Module):
         self.bn1 = nn.BatchNorm1d(channels)
         self.bn2 = nn.BatchNorm1d(channels)
 
-        self.sa1 = SA_Layer(channels)
-        self.sa2 = SA_Layer(channels)
-        self.sa3 = SA_Layer(channels)
-        self.sa4 = SA_Layer(channels)
+        self.sa1 = SA_Layer_MH(channels)
+        self.sa2 = SA_Layer_MH(channels)
+        self.sa3 = SA_Layer_MH(channels)
+        self.sa4 = SA_Layer_MH(channels)
 
         self.relu = nn.ReLU()
         
