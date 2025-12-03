@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+import math
 from pointnet_util import farthest_point_sample, index_points, square_distance
 
 
@@ -59,9 +60,10 @@ class SA_Layer(nn.Module):
         x_q = self.q_conv(x).permute(0, 2, 1) # b, n, c 
         x_k = self.k_conv(x)# b, c, n        
         x_v = self.v_conv(x)
-        energy = x_q @ x_k # b, n, n 
+        d_k = x_q.size(-1)
+        energy = (x_q @ x_k) / math.sqrt(d_k)  # b, n, n
         attention = self.softmax(energy)
-        attention = attention / (1e-9 + attention.sum(dim=1, keepdims=True))
+        # attention = attention / (1e-9 + attention.sum(dim=1, keepdims=True))
         x_r = x_v @ attention # b, c, n 
         x_r = self.act(self.after_norm(self.trans_conv(x - x_r)))
         x = x + x_r
