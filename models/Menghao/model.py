@@ -13,8 +13,8 @@ def sample_and_group(npoint, nsample, xyz, points):
     new_xyz = index_points(xyz, fps_idx) 
     new_points = index_points(points, fps_idx)
 
-    dists = square_distance(new_xyz, xyz)  # B x npoint x N
-    idx = dists.argsort()[:, :, :nsample]  # B x npoint x K
+    dists = square_distance(new_xyz, xyz)      # [B, npoint, N]
+    _, idx = torch.topk(dists, nsample, dim=-1, largest=False, sorted=False)
 
     grouped_points = index_points(points, idx)
     grouped_points_norm = grouped_points - new_points.view(B, S, 1, -1)
