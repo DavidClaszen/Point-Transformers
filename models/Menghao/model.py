@@ -60,59 +60,83 @@ class SA_Layer(nn.Module):
         x_q = self.q_conv(x).permute(0, 2, 1) # b, n, c 
         x_k = self.k_conv(x)# b, c, n        
         x_v = self.v_conv(x)
-        d_k = x_q.size(-1)
-        energy = (x_q @ x_k) / math.sqrt(d_k)  # b, n, n
+        energy = x_q @ x_k # b, n, n 
         attention = self.softmax(energy)
-        # attention = attention / (1e-9 + attention.sum(dim=1, keepdims=True))
-        x_r = x_v @ attention  # b, c, n 
+        attention = attention / (1e-9 + attention.sum(dim=1, keepdims=True))
+        x_r = x_v @ attention # b, c, n 
         x_r = self.act(self.after_norm(self.trans_conv(x - x_r)))
         x = x + x_r
         return x
 
 
 class SA_Layer_MH(nn.Module):
+    """
+    Multi-head version of your original SA_Layer.
+
+    - Same offset attention formulation:
+        energy = q @ k
+        attention = softmax(energy)
+        attention = attention / (sum over query dim)
+
+    - q and k share the same conv (like q_conv.weight = k_conv.weight).
+    - No sqrt(d_k) scaling.
+    """
     def __init__(self, channels, num_heads=4):
         super().__init__()
-        assert channels % num_heads == 0
+        assert channels % num_heads == 0, "channels must be divisible by num_heads"
         self.channels = channels
         self.num_heads = num_heads
-        self.head_dim = channels // num_heads
+        self.head_dim_v = channels // num_heads  # for v
 
-        # shared qk + v as before
-        self.qk_conv = nn.Conv1d(channels, channels, 1, bias=False)
-        self.v_conv = nn.Conv1d(channels, channels, 1, bias=False)
+        # q/k use a reduced dimension like original: channels // 4 total
+        self.qk_channels = channels // 4
+        assert self.qk_channels % num_heads == 0, "channels//4 must be divisible by num_heads"
+        self.head_dim_qk = self.qk_channels // num_heads
+        self.qk_conv = nn.Conv1d(channels, self.qk_channels, 1, bias=False)
+        self.v_conv = nn.Conv1d(channels, channels, 1)
+
+        # offset + residual
         self.trans_conv = nn.Conv1d(channels, channels, 1)
         self.after_norm = nn.BatchNorm1d(channels)
         self.act = nn.ReLU()
         self.softmax = nn.Softmax(dim=-1)
 
     def forward(self, x):
-        # x: (B, C, N)
+        """
+        x: (B, C, N)
+        returns: (B, C, N)
+        """
         B, C, N = x.shape
 
-        qk = self.qk_conv(x)                         # (B, C, N)
-        v = self.v_conv(x)                          # (B, C, N)
+        # qk: (B, C_qk, N)
+        qk = self.qk_conv(x)
+        # v:  (B, C, N)
+        v = self.v_conv(x)
 
-        # reshape to heads
-        qk = qk.view(B, self.num_heads, self.head_dim, N)
-        v = v.view(B, self.num_heads, self.head_dim, N)
+        # reshape into heads
+        # qk: (B, H, Dh_qk, N)
+        qk = qk.view(B, self.num_heads, self.head_dim_qk, N)
+        # v:  (B, H, Dh_v,  N)
+        v = v.view(B, self.num_heads, self.head_dim_v, N)
 
-        q = qk                                      # (B, H, Dh, N)
-        k = qk                                      # weight tying
+        # q: (B, H, N, Dh_qk), k: (B, H, Dh_qk, N)
+        q = qk.permute(0, 1, 3, 2)
+        k = qk
+        # energy: (B, H, N, N)
+        energy = torch.matmul(q, k)
+        attention = self.softmax(energy)
 
-        q = q.permute(0, 1, 3, 2)                   # (B, H, N, Dh)
-        k = k                                       # (B, H, Dh, N)
+        # Weirdly functional...
+        # extra renormalization over query dimension (dim=2 in (B,H,N,N)):
+        # makes columns roughly sum to 1 as well (doubly-stochastic-ish)
+        attention = attention / (1e-9 + attention.sum(dim=2, keepdim=True))
+        x_r = torch.matmul(v, attention)
 
-        energy = torch.matmul(q, k) / math.sqrt(self.head_dim)  # (B, H, N, N)
-        attn = self.softmax(energy)
-
-        # v: (B, H, Dh, N); attn: (B, H, N, N)
-        x_r = torch.matmul(v, attn)                 # (B, H, Dh, N)
-
-        # merge heads back
+        # merge heads back: (B, C, N)
         x_r = x_r.view(B, C, N)
         x_r = self.act(self.after_norm(self.trans_conv(x - x_r)))
-        return x + x_r
+        x = x + x_r
+        return x
 
 
 class StackedAttention(nn.Module):
