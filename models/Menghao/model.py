@@ -148,10 +148,10 @@ class StackedAttention(nn.Module):
         self.bn1 = nn.BatchNorm1d(channels)
         self.bn2 = nn.BatchNorm1d(channels)
 
-        self.sa1 = SA_Layer_MH(channels)
-        self.sa2 = SA_Layer_MH(channels)
-        self.sa3 = SA_Layer_MH(channels)
-        self.sa4 = SA_Layer_MH(channels)
+        self.sa1 = SA_Layer(channels)
+        self.sa2 = SA_Layer(channels)
+        self.sa3 = SA_Layer(channels)
+        self.sa4 = SA_Layer(channels)
 
         self.relu = nn.ReLU()
         
