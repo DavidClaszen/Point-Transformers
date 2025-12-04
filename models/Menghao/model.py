@@ -69,8 +69,55 @@ class SA_Layer(nn.Module):
         return x
 
 
+class SA_Layer_RP(nn.Module):
+    """
+    Copy of SA_Layer, with relative positional bias added
+    """
+    def __init__(self, channels, pos_hidden_dim=16):
+        super().__init__()
+        self.q_conv = nn.Conv1d(channels, channels // 4, 1, bias=False)
+        self.k_conv = nn.Conv1d(channels, channels // 4, 1, bias=False)
+        self.q_conv.weight = self.k_conv.weight 
+        self.v_conv = nn.Conv1d(channels, channels, 1)
+        self.trans_conv = nn.Conv1d(channels, channels, 1)
+        self.after_norm = nn.BatchNorm1d(channels)
+        self.act = nn.ReLU()
+        self.softmax = nn.Softmax(dim=-1)
+
+        # tiny MLP: R^3 -> R^1 for relative positional bias
+        self.pos_mlp = nn.Sequential(
+            nn.Linear(3, pos_hidden_dim),
+            nn.ReLU(),
+            nn.Linear(pos_hidden_dim, 1)
+        )
+
+    def forward(self, x, xyz):
+        """
+        x:   (B, C, N)   features
+        xyz: (B, N, 3)   coordinates for these N points
+        """
+        x_q = self.q_conv(x).permute(0, 2, 1)  # (B, N, Cq)
+        x_k = self.k_conv(x)                   # (B, Cq, N)
+        x_v = self.v_conv(x)                   # (B, C,  N)
+        energy = torch.bmm(x_q, x_k)           # (B, N, N)
+
+        # bias
+        rel = xyz[:, :, None, :] - xyz[:, None, :, :]
+        pos_bias = self.pos_mlp(rel).squeeze(-1)
+
+        # add bias to energy
+        energy = energy + pos_bias
+        attention = self.softmax(energy)
+        attention = attention / (1e-9 + attention.sum(dim=1, keepdim=True))
+        x_r = torch.bmm(x_v, attention)
+        x_r = self.act(self.after_norm(self.trans_conv(x - x_r)))
+        x = x + x_r
+        return x
+
+
 class SA_Layer_MH(nn.Module):
     """
+    NOT USED. DIDN'T RESULT IN PERFORMANCE GAIN
     Multi-head version of your original SA_Layer.
 
     - Same offset attention formulation:
@@ -140,7 +187,7 @@ class SA_Layer_MH(nn.Module):
 
 
 class StackedAttention(nn.Module):
-    def __init__(self, channels=256):
+    def __init__(self, channels=256, pos_hidden_dim=16):
         super().__init__()
         self.conv1 = nn.Conv1d(channels, channels, kernel_size=1, bias=False)
         self.conv2 = nn.Conv1d(channels, channels, kernel_size=1, bias=False)
@@ -148,15 +195,14 @@ class StackedAttention(nn.Module):
         self.bn1 = nn.BatchNorm1d(channels)
         self.bn2 = nn.BatchNorm1d(channels)
 
-        self.sa1 = SA_Layer(channels)
-        self.sa2 = SA_Layer(channels)
-        self.sa3 = SA_Layer(channels)
-        self.sa4 = SA_Layer(channels)
+        self.sa1 = SA_Layer_RP(channels, pos_hidden_dim=pos_hidden_dim)
+        self.sa2 = SA_Layer_RP(channels, pos_hidden_dim=pos_hidden_dim)
+        self.sa3 = SA_Layer_RP(channels, pos_hidden_dim=pos_hidden_dim)
+        self.sa4 = SA_Layer_RP(channels, pos_hidden_dim=pos_hidden_dim)
 
         self.relu = nn.ReLU()
-        
-    def forward(self, x):
-        # 
+
+    def forward(self, x, xyz):
         # b, 3, npoint, nsample  
         # conv2d 3 -> 128 channels 1, 1
         # b * npoint, c, nsample 
@@ -166,11 +212,11 @@ class StackedAttention(nn.Module):
         x = self.relu(self.bn1(self.conv1(x))) # B, D, N
         x = self.relu(self.bn2(self.conv2(x)))
 
-        x1 = self.sa1(x)
-        x2 = self.sa2(x1)
-        x3 = self.sa3(x2)
-        x4 = self.sa4(x3)
-        
+        x1 = self.sa1(x,  xyz)
+        x2 = self.sa2(x1, xyz)
+        x3 = self.sa3(x2, xyz)
+        x4 = self.sa4(x3, xyz)
+
         x = torch.cat((x1, x2, x3, x4), dim=1)
 
         return x
@@ -187,7 +233,7 @@ class PointTransformerCls(nn.Module):
         self.bn2 = nn.BatchNorm1d(64)
         self.gather_local_0 = Local_op(in_channels=128, out_channels=128)
         self.gather_local_1 = Local_op(in_channels=256, out_channels=256)
-        self.pt_last = StackedAttention()
+        self.pt_last = StackedAttention(channels=256, pos_hidden_dim=16)
 
         self.relu = nn.ReLU()
         self.conv_fuse = nn.Sequential(nn.Conv1d(1280, 1024, kernel_size=1, bias=False),
@@ -212,10 +258,12 @@ class PointTransformerCls(nn.Module):
         new_xyz, new_feature = sample_and_group(npoint=512, nsample=32, xyz=xyz, points=x)         
         feature_0 = self.gather_local_0(new_feature)
         feature = feature_0.permute(0, 2, 1)
-        new_xyz, new_feature = sample_and_group(npoint=256, nsample=32, xyz=new_xyz, points=feature) 
-        feature_1 = self.gather_local_1(new_feature)
-        
-        x = self.pt_last(feature_1)
+        new_xyz, new_feature = sample_and_group(
+            npoint=256, nsample=32, xyz=new_xyz, points=feature
+        )
+        feature_1 = self.gather_local_1(new_feature)      # (B, C, 256)
+
+        x = self.pt_last(feature_1, new_xyz)              # new_xyz: (B, 256, 3)
         x = torch.cat([x, feature_1], dim=1)
         x = self.conv_fuse(x)
         x = torch.max(x, 2)[0]
