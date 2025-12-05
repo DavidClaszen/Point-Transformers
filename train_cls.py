@@ -3,7 +3,7 @@ Author: Benny
 Date: Nov 2019
 """
 from dataset import ModelNetDataLoader, PAPNetDataLoader
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 import argparse
 import numpy as np
 import os
@@ -21,7 +21,8 @@ import omegaconf
 
 scaler = GradScaler()
 torch.backends.cudnn.benchmark = True
-torch.set_float32_matmul_precision("high")
+torch.backends.cuda.matmul.fp32_precision = "tf32"
+torch.backends.cudnn.conv.fp32_precision = "tf32"
 
 def test(model, loader, num_class=40):
     mean_correct = []
@@ -66,12 +67,14 @@ def main(args):
         npoint=args.num_point,
         split='train',
         normal_channel=args.normal,
+        partiality=args.partiality
     )
     TEST_DATASET = DatasetClass(
         root=DATA_PATH,
         npoint=args.num_point,
         split='test',
         normal_channel=args.normal,
+        partiality=args.partiality
     )
 
     trainDataLoader = torch.utils.data.DataLoader(
@@ -94,7 +97,8 @@ def main(args):
     criterion = torch.nn.CrossEntropyLoss()
 
     try:
-        checkpoint = torch.load(args.checkpoint_path)
+        ckpt_path = hydra.utils.to_absolute_path(args.checkpoint_path)
+        checkpoint = torch.load(ckpt_path, weights_only=False)
         start_epoch = checkpoint['epoch']
         classifier.load_state_dict(checkpoint['model_state_dict'])
         logger.info('Use pretrain model')
@@ -143,7 +147,7 @@ def main(args):
             points, target = points.cuda(), target.cuda()
             optimizer.zero_grad()
 
-            with autocast():
+            with autocast('cuda'):
                 pred = classifier(points)
                 loss = criterion(pred, target.long())
 
@@ -175,7 +179,7 @@ def main(args):
 
             if (instance_acc >= best_instance_acc):
                 logger.info('Save model...')
-                savepath = args.checkpoint_path
+                savepath = hydra.utils.to_absolute_path(args.checkpoint_path)
                 logger.info('Saving at %s'% savepath)
                 state = {
                     'epoch': best_epoch,
