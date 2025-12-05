@@ -138,7 +138,18 @@ def main(args):
         for batch_id, data in tqdm(enumerate(trainDataLoader, 0), total=len(trainDataLoader), smoothing=0.9):
             points, target = data
             points = points.data.numpy()
-            points = provider.random_point_dropout(points)
+
+            if args.occlusion:
+                # Use geometric occlusion instead of dropout
+                points = provider.random_plane_occlusion(
+                    points,
+                    min_occlude=args.occlusion_min,
+                    max_occlude=args.occlusion_max,
+                )
+            else:
+                # Original random point dropout
+                points = provider.random_point_dropout(points)
+
             points[:,:, 0:3] = provider.random_scale_point_cloud(points[:,:, 0:3])
             points[:,:, 0:3] = provider.shift_point_cloud(points[:,:, 0:3])
             points = torch.Tensor(points)
