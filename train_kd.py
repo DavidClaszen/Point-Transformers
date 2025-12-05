@@ -1,5 +1,5 @@
 from dataset import ModelNetDataLoader, PAPNetDataLoader
-from torch.cuda.amp import autocast, GradScaler
+from torch.amp import autocast, GradScaler
 import argparse
 import numpy as np
 import os
@@ -164,7 +164,7 @@ def main(args):
             points, target = points.cuda(), target.cuda()
             optimizer.zero_grad()
 
-            with autocast():
+            with autocast('cuda'):
                 pred = classifier(points)
                 label_loss = criterion(pred, target.long())
             
