@@ -133,26 +133,25 @@ class PointTransformerCls(nn.Module):
         self.bn1 = nn.BatchNorm1d(64)
         self.bn2 = nn.BatchNorm1d(64)
         self.gather_local_0 = Local_op(in_channels=128, out_channels=128)
-        self.gather_local_1 = Local_op(in_channels=256, out_channels=cfg.sa.channels)
+        self.gather_local_1 = Local_op(in_channels=256, out_channels=cfg.model.sa.channels)
         
-        self.pt_last = StackedAttention(cfg.sa.channels, 
-                                        num_stacks=cfg.sa.num_stacks, 
-                                        num_conv_layers=cfg.sa.num_conv_layers)
-
+        self.pt_last = StackedAttention(cfg.model.sa.channels, 
+                                        num_stacks=cfg.model.sa.num_stacks, 
+                                        num_conv_layers=cfg.model.sa.num_conv_layers)
         self.relu = nn.ReLU()
-        self.conv_fuse = nn.Sequential(nn.Conv1d(cfg.sa.channels * (cfg.sa.num_stacks + 1), cfg.lbr_channels, kernel_size=1, bias=False),
-                                   nn.BatchNorm1d(cfg.lbr_channels),
+        self.conv_fuse = nn.Sequential(nn.Conv1d(cfg.model.sa.channels * (cfg.model.sa.num_stacks + 1), cfg.model.lbr_channels, kernel_size=1, bias=False),
+                                   nn.BatchNorm1d(cfg.model.lbr_channels),
                                    nn.LeakyReLU(negative_slope=0.2))
 
         self.num_lbrd = cfg.num_lbrd
 
         if cfg.decoder.num_lbrd == 1:
-            self.linear1 = nn.Linear(cfg.lbr.channels, 512, bias=False)
+            self.linear1 = nn.Linear(cfg.model.lbr_channels, 512, bias=False)
             self.bn6 = nn.BatchNorm1d(512)
             self.dp1 = nn.Dropout(p=0.5)
             self.linear3 = nn.Linear(512, output_channels)
-        elif cfg.num_lbrd == 2:
-            self.linear1 = nn.Linear(cfg.lbr.channels, 512, bias=False)
+        elif cfg.decoder.num_lbrd == 2:
+            self.linear1 = nn.Linear(cfg.model.lbr_channels, 512, bias=False)
             self.bn6 = nn.BatchNorm1d(512)
             self.dp1 = nn.Dropout(p=0.5)
             self.linear2 = nn.Linear(512, 256)
