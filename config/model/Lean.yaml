@@ -1,8 +1,8 @@
 name: Lean
 decoder:
-  num_lbrd: 2
-lbr_channels: 512
+  num_lbrd: 2 # Default: 2
+lbr_channels: 1024 # Default: 1024
 sa:
-  channels: 128
-  num_stacks: 2
-  num_conv_layers: 2
+  channels: 256 # Default: 256
+  num_stacks: 4 # Default: 4
+  num_conv_layers: 2  # Default: 2
