@@ -1,3 +1,4 @@
+name: set_sa_stacks1
 model:
   decoder:
     num_lbrd: 2 # Default: 2

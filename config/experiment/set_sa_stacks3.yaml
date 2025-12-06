@@ -1,4 +1,4 @@
-name: default_set  
+name: set_sa_stacks3
 model:
   decoder:
     num_lbrd: 2 # Default: 2
@@ -8,4 +8,4 @@ model:
   sa:
     channels: 256 # Default: 256
     num_conv_layers: 2  # Default: 2
-    num_stacks: 4 # Default: 4
+    num_stacks: 2 # Default: 4

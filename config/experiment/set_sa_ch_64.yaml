@@ -1,4 +1,4 @@
-name: minimal
+name: set_sa_ch_64
 model:
   decoder:
     num_lbrd: 1 # Default: 2
@@ -6,6 +6,6 @@ model:
     hidden_dim2: 256 # Default: 256, used when num_lbrd is >=2
   lbr_channels: 512 # Default: 1024
   sa:
-    channels: 128 # Default: 256
-    num_conv_layers: 1  # Default: 2
-    num_stacks: 1 # Default: 4
+    channels: 64 # Default: 256
+    num_conv_layers: 2  # Default: 2
+    num_stacks: 4 # Default: 4
