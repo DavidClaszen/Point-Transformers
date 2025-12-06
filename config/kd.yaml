@@ -14,6 +14,7 @@ checkpoint_path: 'best_model.pth'
 log_path: 'log/cls'
 
 defaults:
+  - model: Lean
   - experiment: default_set
   - _self_
 
