@@ -20,7 +20,7 @@ kd:
   enabled: True
   teacher:
     model:
-      name: Menghao
+      name: Patch
     num_class: 40
     input_dim: 6 
     checkpoint_path: 'best_model.pth'
