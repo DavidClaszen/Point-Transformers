@@ -1,3 +1,4 @@
+from turtle import shape
 import torch
 import torch.nn as nn
 from pointnet_util import farthest_point_sample, index_points, square_distance
@@ -176,6 +177,7 @@ class PointTransformerCls(nn.Module):
 
         x = self.pt_last(feature_1)
         x = torch.cat([x, feature_1], dim=1)
+        print("shape before fusing:", x.shape)
         x = self.conv_fuse(x)
         x = torch.max(x, 2)[0]
         x = x.view(batch_size, -1)
