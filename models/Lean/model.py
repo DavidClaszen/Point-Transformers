@@ -176,6 +176,7 @@ class PointTransformerCls(nn.Module):
         feature_1 = self.gather_local_1(new_feature)
 
         x = self.pt_last(feature_1)
+        print("shape x:", x.shape)
         x = torch.cat([x, feature_1], dim=1)
         print("shape before fusing:", x.shape)
         x = self.conv_fuse(x)
