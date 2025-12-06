@@ -141,7 +141,7 @@ class PointTransformerCls(nn.Module):
                                         num_conv_layers=cfg.model.sa.num_conv_layers)
         self.relu = nn.ReLU()
         self.conv_fuse = nn.Sequential(nn.Conv1d(cfg.model.sa.channels * (cfg.model.sa.num_stacks + 1), cfg.model.lbr_channels, kernel_size=1, bias=False),
-                                   nn.BatchNorm1d(cfg.model.lbr1_channels),
+                                   nn.BatchNorm1d(cfg.model.lbr_channels),
                                    nn.LeakyReLU(negative_slope=0.2))
 
         self.num_lbrd = cfg.model.decoder.num_lbrd
