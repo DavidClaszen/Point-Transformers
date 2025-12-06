@@ -15,6 +15,7 @@ log_path: 'log/cls'
 
 defaults:
   - model: Lean
+  - experiment: default_set
   - _self_
 
 kd:
