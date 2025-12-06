@@ -1,4 +1,0 @@
-name: minimal
-# @package _global_
-defaults:
-  - override /model: lean_minimal
