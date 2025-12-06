@@ -113,10 +113,10 @@ class StackedAttention(nn.Module):
             x = x1
         if hasattr(self, 'sa2'):
             x2 = self.sa2(x1)
-            x = x2
+            x = torch.cat((x1, x2), dim=1)
         if hasattr(self, 'sa3'):
             x3 = self.sa3(x2)
-            x = x3
+            x = torch.cat((x1, x2, x3), dim=1)
         if hasattr(self, 'sa4'):
             x4 = self.sa4(x3)
             x = torch.cat((x1, x2, x3, x4), dim=1)
