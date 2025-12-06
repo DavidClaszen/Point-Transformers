@@ -32,7 +32,7 @@ hydra:
   run:
     dir: ${log_path}/${model.name}
   sweep:
-    dir: ${log_path}
-    subdir: ${model.name}_${model.sa.num_conv_layers}
+    dir: ${log_path}/multiruns/${hydra.job.name}
+    subdir: ${model.name}/${now:%Y-%m-%d_%H-%M-%S}
   job:
     chdir: True

@@ -1,6 +1,8 @@
 name: Lean
 decoder:
   num_lbrd: 2 # Default: 2
+  hidden_dim: 512 # Default: 512, used when num_lbrd is >=1
+  hidden_dim2: 256 # Default: 256, used when num_lbrd is >=2
 lbr_channels: 1024 # Default: 1024
 sa:
   channels: 256 # Default: 256
