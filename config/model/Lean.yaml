@@ -4,5 +4,5 @@ decoder:
 lbr_channels: 1024 # Default: 1024
 sa:
   channels: 256 # Default: 256
-  num_stacks: 4 # Default: 4
   num_conv_layers: 2  # Default: 2
+  num_stacks: 4 # Default: 4

@@ -11,6 +11,7 @@ workers: 2
 step_size: 50
 data_path: '../../datasets/modelnet40_normal_resampled/'
 checkpoint_path: 'best_model.pth'
+log_path: 'log/cls'
 
 defaults:
   - model: Lean
@@ -29,9 +30,9 @@ kd:
 
 hydra:
   run:
-    dir: log/cls/${model.name}
+    dir: ${log_path}/${model.name}
   sweep:
-    dir: log/cls
+    dir: ${log_path}
     subdir: ${model.name}
   job:
     chdir: True
