@@ -143,14 +143,14 @@ class PointTransformerCls(nn.Module):
                                    nn.BatchNorm1d(cfg.model.lbr_channels),
                                    nn.LeakyReLU(negative_slope=0.2))
 
-        self.num_lbrd = cfg.decoder.num_lbrd
+        self.num_lbrd = cfg.model.decoder.num_lbrd
 
-        if cfg.decoder.num_lbrd == 1:
+        if cfg.model.decoder.num_lbrd == 1:
             self.linear1 = nn.Linear(cfg.model.lbr_channels, 512, bias=False)
             self.bn6 = nn.BatchNorm1d(512)
             self.dp1 = nn.Dropout(p=0.5)
             self.linear3 = nn.Linear(512, output_channels)
-        elif cfg.decoder.num_lbrd == 2:
+        elif cfg.model.decoder.num_lbrd == 2:
             self.linear1 = nn.Linear(cfg.model.lbr_channels, 512, bias=False)
             self.bn6 = nn.BatchNorm1d(512)
             self.dp1 = nn.Dropout(p=0.5)
