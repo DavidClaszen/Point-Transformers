@@ -1,0 +1,3 @@
+name: set_sa_ch_128
+defaults:
+  - override /model: lean_set_sa_ch_128

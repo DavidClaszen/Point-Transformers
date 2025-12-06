@@ -1,0 +1,3 @@
+name: minimal
+defaults:
+  - override /model: lean_minimal
