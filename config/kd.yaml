@@ -33,6 +33,6 @@ hydra:
     dir: ${log_path}/${model.name}
   sweep:
     dir: ${log_path}
-    subdir: ${model.name}
+    subdir: ${model.name}_${model.sa.num_conv_layers}
   job:
     chdir: True
