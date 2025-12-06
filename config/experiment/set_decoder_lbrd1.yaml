@@ -1,5 +1,6 @@
 name: set_decoder_lbrd1
 model:
+  name: Lean
   decoder:
     num_lbrd: 1 # Default: 2
     hidden_dim: 256 # Default: 512, used when num_lbrd is >=1

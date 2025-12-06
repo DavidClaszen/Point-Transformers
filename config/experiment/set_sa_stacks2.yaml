@@ -1,5 +1,6 @@
 name: set_sa_stacks2
 model:
+  name: Lean
   decoder:
     num_lbrd: 2 # Default: 2
     hidden_dim: 512 # Default: 512, used when num_lbrd is >=1
