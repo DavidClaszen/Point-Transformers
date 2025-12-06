@@ -1,4 +1,5 @@
 name: Lean
+subname: set_sa_stacks3
 decoder:
   num_lbrd: 2 # Default: 2
   hidden_dim: 512 # Default: 512, used when num_lbrd is >=1

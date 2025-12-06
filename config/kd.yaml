@@ -33,6 +33,6 @@ hydra:
     dir: ${log_path}/${model.name}
   sweep:
     dir: ${log_path}/multiruns/${hydra.job.name}
-    subdir: ${model.name}/${now:%Y-%m-%d_%H-%M-%S}_${experiment.name}
+    subdir: ${model.name}/${now:%Y-%m-%d_%H-%M-%S}_${model.subname}
   job:
     chdir: True
