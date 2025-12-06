@@ -143,7 +143,7 @@ class PointTransformerCls(nn.Module):
                                    nn.BatchNorm1d(cfg.model.lbr_channels),
                                    nn.LeakyReLU(negative_slope=0.2))
 
-        self.num_lbrd = cfg.num_lbrd
+        self.num_lbrd = cfg.decoder.num_lbrd
 
         if cfg.decoder.num_lbrd == 1:
             self.linear1 = nn.Linear(cfg.model.lbr_channels, 512, bias=False)
