@@ -1,12 +1,10 @@
-name: set_sa_ch_64
-model:
-  name: Lean
-  decoder:
-    num_lbrd: 1 # Default: 2
-    hidden_dim: 256 # Default: 512, used when num_lbrd is >=1
-    hidden_dim2: 256 # Default: 256, used when num_lbrd is >=2
-  lbr_channels: 512 # Default: 1024
-  sa:
-    channels: 64 # Default: 256
-    num_conv_layers: 2  # Default: 2
-    num_stacks: 4 # Default: 4
+name: lean_set_sa_ch_64
+decoder:
+  num_lbrd: 1 # Default: 2
+  hidden_dim: 256 # Default: 512, used when num_lbrd is >=1
+  hidden_dim2: 256 # Default: 256, used when num_lbrd is >=2
+lbr_channels: 512 # Default: 1024
+sa:
+  channels: 64 # Default: 256
+  num_conv_layers: 2  # Default: 2
+  num_stacks: 4 # Default: 4
