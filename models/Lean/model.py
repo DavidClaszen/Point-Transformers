@@ -69,19 +69,29 @@ class SA_Layer(nn.Module):
 
 
 class StackedAttention(nn.Module):
-    def __init__(self, channels=256):
+    def __init__(self, channels=256, num_stacks=4, num_conv_layers=2):
         super().__init__()
-        self.conv1 = nn.Conv1d(channels, channels, kernel_size=1, bias=False)
-        self.conv2 = nn.Conv1d(channels, channels, kernel_size=1, bias=False)
-
-        self.bn1 = nn.BatchNorm1d(channels)
-        self.bn2 = nn.BatchNorm1d(channels)
         
-        self.sa1 = SA_Layer(channels)
-        self.sa2 = SA_Layer(channels)
-        # self.sa3 = SA_Layer(channels)
-        # self.sa4 = SA_Layer(channels)
-
+        self.channels = channels
+        self.num_conv_layers = num_conv_layers
+        self.num_stacks = num_stacks
+        
+        if num_conv_layers >= 1:
+            self.conv1 = nn.Conv1d(channels, channels, kernel_size=1, bias=False)
+            self.bn1 = nn.BatchNorm1d(channels)
+        if num_conv_layers >= 2:
+            self.conv2 = nn.Conv1d(channels, channels, kernel_size=1, bias=False)
+            self.bn2 = nn.BatchNorm1d(channels)
+        
+        # To make it more explicit for the ablation study, we define each SA layer separately
+        if num_stacks >= 1:
+            self.sa1 = SA_Layer(channels)
+        if num_stacks >= 2:
+            self.sa2 = SA_Layer(channels)
+        if num_stacks >= 3:
+            self.sa3 = SA_Layer(channels)
+        if num_stacks >= 4:
+            self.sa4 = SA_Layer(channels)
         self.relu = nn.ReLU()
 
     def forward(self, x):
@@ -92,17 +102,23 @@ class StackedAttention(nn.Module):
         # permute reshape
         batch_size, _, N = x.size()
 
-        x = self.relu(self.bn1(self.conv1(x))) # B, D, N
-        x = self.relu(self.bn2(self.conv2(x)))
+        if hasattr(self, 'conv1'):
+            x = self.relu(self.bn1(self.conv1(x)))
+        if hasattr(self, 'conv2'):
+            x = self.relu(self.bn2(self.conv2(x)))
 
-        x1 = self.sa1(x)
-        # x2 = self.sa2(x1)
-        # x3 = self.sa3(x2)
-        # x4 = self.sa4(x3)
-
-        # x = torch.cat((x1, x2, x3, x4), dim=1)
-        # x = torch.cat((x1, x2), dim=1)
-        x = x1
+        if hasattr(self, 'sa1'):
+            x1 = self.sa1(x)
+            x = x1
+        if hasattr(self, 'sa2'):
+            x2 = self.sa2(x1)
+            x = x2
+        if hasattr(self, 'sa3'):
+            x3 = self.sa3(x2)
+            x = x3
+        if hasattr(self, 'sa4'):
+            x4 = self.sa4(x3)
+            x = torch.cat((x1, x2, x3, x4), dim=1)
 
         return x
 
@@ -117,18 +133,34 @@ class PointTransformerCls(nn.Module):
         self.bn1 = nn.BatchNorm1d(64)
         self.bn2 = nn.BatchNorm1d(64)
         self.gather_local_0 = Local_op(in_channels=128, out_channels=128)
-        self.gather_local_1 = Local_op(in_channels=256, out_channels=256)
-        self.pt_last = StackedAttention(256)
+        self.gather_local_1 = Local_op(in_channels=256, out_channels=cfg.sa.channels)
+        
+        self.pt_last = StackedAttention(cfg.sa.channels, 
+                                        num_stacks=cfg.sa.num_stacks, 
+                                        num_conv_layers=cfg.sa.num_conv_layers)
 
         self.relu = nn.ReLU()
-        self.conv_fuse = nn.Sequential(nn.Conv1d(256*2, 512, kernel_size=1, bias=False),
-                                   nn.BatchNorm1d(512),
+        self.conv_fuse = nn.Sequential(nn.Conv1d(cfg.sa.channels * (cfg.sa.num_stacks + 1), cfg.lbr_channels, kernel_size=1, bias=False),
+                                   nn.BatchNorm1d(cfg.lbr_channels),
                                    nn.LeakyReLU(negative_slope=0.2))
 
-        self.linear1 = nn.Linear(512, 256, bias=False)
-        self.bn6 = nn.BatchNorm1d(256)
-        self.dp1 = nn.Dropout(p=0.2)
-        self.linear3 = nn.Linear(256, output_channels)
+        self.num_lbrd = cfg.num_lbrd
+
+        if cfg.decoder.num_lbrd == 1:
+            self.linear1 = nn.Linear(cfg.lbr.channels, 512, bias=False)
+            self.bn6 = nn.BatchNorm1d(512)
+            self.dp1 = nn.Dropout(p=0.5)
+            self.linear3 = nn.Linear(512, output_channels)
+        elif cfg.num_lbrd == 2:
+            self.linear1 = nn.Linear(cfg.lbr.channels, 512, bias=False)
+            self.bn6 = nn.BatchNorm1d(512)
+            self.dp1 = nn.Dropout(p=0.5)
+            self.linear2 = nn.Linear(512, 256)
+            self.bn7 = nn.BatchNorm1d(256)
+            self.dp2 = nn.Dropout(p=0.5)
+            self.linear3 = nn.Linear(256, output_channels)
+        else:
+            raise ValueError("cfg.decoder.num_lbrd must only be 1 or 2")
 
     def forward(self, x):
         xyz = x[..., :3]
@@ -149,11 +181,15 @@ class PointTransformerCls(nn.Module):
         x = torch.max(x, 2)[0]
         x = x.view(batch_size, -1)
 
-        # Reduce layers
-        x = self.relu(self.bn6(self.linear1(x)))
-        x = self.dp1(x)
-        # x = self.relu(self.bn7(self.linear2(x)))
-        # x = self.dp2(x)
-        x = self.linear3(x)
+        if self.num_lbrd == 1:
+            x = self.relu(self.bn6(self.linear1(x)))
+            x = self.dp1(x)
+            x = self.linear3(x)
+        elif self.num_lbrd == 2:
+            x = self.relu(self.bn6(self.linear1(x)))
+            x = self.dp1(x)
+            x = self.relu(self.bn7(self.linear2(x)))
+            x = self.dp2(x)
+            x = self.linear3(x)
 
         return x
