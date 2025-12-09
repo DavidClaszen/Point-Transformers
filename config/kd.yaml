@@ -1,0 +1,38 @@
+batch_size: 16
+epoch: 200
+learning_rate: 1e-3
+gpu: 0
+num_point: 1024
+optimizer: Adam
+weight_decay: 1e-4
+normal: True
+use_papnet_loader: False
+workers: 2
+step_size: 50
+data_path: '../../datasets/modelnet40_normal_resampled/'
+checkpoint_path: 'best_model.pth'
+log_path: 'log/cls'
+
+defaults:
+  - model: Lean
+  - _self_
+
+kd:
+  enabled: True
+  teacher:
+    model:
+      name: Patch
+    num_class: 40
+    input_dim: 6 
+    checkpoint_path: 'best_model.pth'
+  temperature: 4.0
+  alpha: 0.7
+
+hydra:
+  run:
+    dir: ${log_path}/${model.name}
+  sweep:
+    dir: ${log_path}/multiruns/${hydra.job.name}
+    subdir: ${model.name}/${now:%Y-%m-%d_%H-%M-%S}_${model.subname}
+  job:
+    chdir: True
